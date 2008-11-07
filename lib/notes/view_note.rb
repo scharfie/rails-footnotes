@@ -22,11 +22,11 @@ module Footnotes
 
       protected
         def first_render?
-          @template.__send__(:_first_render)
+          @template.instance_variable_get(:@_first_render)
         end
         
         def filename
-          @filename ||= @template.__send__(:_first_render).filename
+          @filename ||= @template.instance_variable_get(:@_first_render).filename
         end
     end
   end

@@ -114,7 +114,7 @@ module Footnotes
       end
 
       def first_render?
-        @template.__send__(:_first_render)
+        @template.instance_variable_get(:@_first_render)
       end
 
       def valid_format?
