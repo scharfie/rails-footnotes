@@ -1,5 +1,12 @@
+New home
+--------
+
+This plugin has new home at [http://github.com/josevalim/rails-footnotes](http://github.com/josevalim/rails-footnotes) for Rails >~ 2.2
+
+I'm waiting for your forks there. =)
+
 Footnotes plugin for Rails (v3.3)
------------------------------------
+=================================
 
 If you are developing in Rails you should know the plugin!
 
