@@ -1,5 +1,12 @@
+New home
+========
+
+This plugin has new home at [http://github.com/josevalim/rails-footnotes](http://github.com/josevalim/rails-footnotes) for Rails >~ 2.2
+
+I'm waiting for your forks there. =)
+
 Footnotes plugin for Rails (v3.3)
------------------------------------
+--------------------------------
 
 If you are developing in Rails you should know the plugin!
 
@@ -8,7 +15,7 @@ It displays footnotes in your application for easy debugging, such as sessions, 
 Even more, it contains links to open files directly in textmate. And if Rails get an error, it appends Textmate links to backtrace file lines.
 
 Installation
-============
+------------
 
 The current version is only Rails Edge (aka Rails 2.2) compatible. Scroll down to check how to install early versions.
 
@@ -21,7 +28,7 @@ If you just want a static copy of the plugin:
 If you are using Git for your own app, then you could use Git sub-modules or the tool [Braid](http://github.com/evilchelu/braid/tree/master).
 
 Early versions
-==============
+--------------
 
 If you are running on Rails 2.1.x, you should use Footnotes v3.2.2:
 
@@ -42,7 +49,7 @@ If you are running on Rails 2.0.x or Rails 1.x, you should use Footnotes v3.0:
 Remember that in Rails 1.x, after filters appear first than before filters in the Filters tab.
 
 Usage
-=====
+-----
 
 * Footnotes are applied in all actions under development. If You want to change this behaviour, check the loader.rb file.
 
@@ -68,7 +75,7 @@ Usage
   Footnotes::Filter.notes = [:session, :cookies, :params, :filters, :routes, :queries, :log, :general]
 
 Creating your own notes
-=======================
+-----------------------
 
 Create your notes to integrate with Footnotes is easy.
 
@@ -118,7 +125,7 @@ Then put in your environment:
   Footnotes::Filter.notes += [:current_user]
 
 Who?
-====
+----
 
 *Current Developer (v3.0 and above)*
 
