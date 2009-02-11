@@ -2,8 +2,13 @@ module Footnotes
   class Filter
     @@no_style = false
     @@multiple_notes = false
+    @@klasses = []
+
+    # Default link prefix is textmate
+    @@prefix = 'txmt://open?url=file://%s&line=%d&column=%d'
+
     # Edit notes
-    @@notes = [ :components, :controller, :view, :layout, :stylesheets, :javascripts ]
+    @@notes = [ :controller, :view, :layout, :stylesheets, :javascripts ]
     # Show notes
     @@notes += [ :session, :cookies, :params, :filters, :routes, :env, :queries, :log, :general ]
 
@@ -34,9 +39,12 @@ module Footnotes
       # This method allows this kind of setup
       #
       def start!(controller)
+        @@klasses = []
+
         each_with_rescue(@@notes.flatten) do |note|
-          klass = eval("Footnotes::Notes::#{note.to_s.camelize}Note") if note.is_a?(Symbol) || note.is_a?(String)
+          klass = "Footnotes::Notes::#{note.to_s.camelize}Note".constantize
           klass.start!(controller) if klass.respond_to?(:start!)
+          @@klasses << klass
         end
       end
 
@@ -57,12 +65,24 @@ module Footnotes
         end
 
         delete_me.each{ |note| notes.delete(note) }
+        return notes
       end
 
       # Logs the error using specified title and format
       #
       def log_error(title, exception)
         RAILS_DEFAULT_LOGGER.error "#{title}: #{exception}\n#{exception.backtrace.join("\n")}"
+      end
+
+      # If none argument is sent, simply return the prefix.
+      # Otherwise, replace the args in the prefix.
+      #
+      def prefix(*args)
+        if args.empty?
+          @@prefix
+        else
+          format(@@prefix, *args)
+        end
       end
 
     end
@@ -86,14 +106,14 @@ module Footnotes
     # This method allows this kind of work
     #
     def close!(controller)
-      each_with_rescue(@notes) do |note|
-        note.class.close!(controller)
+      each_with_rescue(@@klasses) do |klass|
+        klass.close!(controller)
       end
     end
 
     protected
       def valid?
-        performed_render? && first_render? && valid_format? && valid_content_type? && @body.is_a?(String) && !component_request? && !xhr?
+        performed_render? && valid_format? && valid_content_type? && @body.is_a?(String) && !component_request? && !xhr?
       end
 
       def add_footnotes_without_validation!
@@ -103,18 +123,14 @@ module Footnotes
       end
 
       def initialize_notes!
-        each_with_rescue(@@notes.flatten) do |note|
-          note = eval("Footnotes::Notes::#{note.to_s.camelize}Note").new(@controller) if note.is_a?(Symbol) || note.is_a?(String)
+        each_with_rescue(@@klasses) do |klass|
+          note = klass.new(@controller)
           @notes << note if note.respond_to?(:valid?) && note.valid?
         end
       end
 
       def performed_render?
         @controller.instance_variable_get(:@performed_render)
-      end
-
-      def first_render?
-        @template.instance_variable_get(:@_first_render)
       end
 
       def valid_format?
@@ -167,22 +183,50 @@ module Footnotes
           #{links}
           #{content}
           <script type="text/javascript">
-            function footnotes_close(){
-              #{close unless @@multiple_notes}
-            }
-            function footnotes_toogle(id){
-              s = document.getElementById(id).style;
-              before = s.display;
-              footnotes_close();
-              s.display = (before != 'block') ? 'block' : 'none'
-              location.href = '#footnotes_debug';
-            }
+            var Footnotes = function() {
+
+              function hideAll(){
+                #{close unless @@multiple_notes}
+              }
+              
+              function hideAllAndToggle(id) {
+                hideAll();
+                toggle(id)
+              }  
+              
+              function toggle(id){
+                var el = document.getElementById(id);
+                if (el.style.display == 'none') {
+                  Footnotes.show(el);
+                } else {
+                  Footnotes.hide(el);
+                }
+              
+                location.href = '#footnotes_debug';
+              }
+            
+              function show(element) {
+                element.style.display = 'block'
+              }
+            
+              function hide(element) {
+                element.style.display = 'none'
+              }
+
+              return {
+                show: show,
+                hide: hide,
+                toggle: toggle,
+                hideAllAndToggle: hideAllAndToggle
+              }
+            }();
             /* Additional Javascript */
             #{@notes.map(&:javascript).compact.join("\n")}
           </script>
         </div>
         <!-- End Footnotes -->
         HTML
+
         if @body =~ %r{<div[^>]+id=['"]footnotes_holder['"][^>]*>}
           # Insert inside the "footnotes_holder" div if it exists
           insert_text :after, %r{<div[^>]+id=['"]footnotes_holder['"][^>]*>}, footnotes_html
@@ -192,7 +236,7 @@ module Footnotes
         end
       end
 
-      # Process notes to gets their links
+      # Process notes to gets their links in their equivalent row
       #
       def links
         links = Hash.new([])
@@ -215,7 +259,7 @@ module Footnotes
       def fieldsets
         content = ''
         each_with_rescue(@notes) do |note|
-          next unless note.fieldset?
+          next unless note.has_fieldset?
           content << <<-HTML
             <fieldset id="#{note.to_sym}_debug_info" style="display: none">
               <legend>#{note.legend}</legend>
@@ -226,13 +270,13 @@ module Footnotes
         content
       end
 
-      # Process notes to get javascript code to close them all
-      # This method is used with multiple_notes is false
+      # Process notes to get javascript code to close them.
+      # This method is only used when multiple_notes is false.
       #
       def close
         javascript = ''
         each_with_rescue(@notes) do |note|
-          next unless note.fieldset?
+          next unless note.has_fieldset?
           javascript << close_helper(note)
         end
         javascript
@@ -245,7 +289,7 @@ module Footnotes
       # Helper that creates the javascript code to close the note
       #
       def close_helper(note)
-        "document.getElementById('#{note.to_sym}_debug_info').style.display = 'none'\n"
+        "Footnotes.hide(document.getElementById('#{note.to_sym}_debug_info'));\n"
       end
 
       # Helper that creates the link and javascript code when note is clicked
@@ -254,7 +298,7 @@ module Footnotes
         onclick = note.onclick
         unless href = note.link
           href = '#'
-          onclick ||= "footnotes_toogle('#{note.to_sym}_debug_info');return false;" if note.fieldset?
+          onclick ||= "Footnotes.hideAllAndToggle('#{note.to_sym}_debug_info');return false;" if note.has_fieldset?
         end
 
         "<a href=\"#{href}\" onclick=\"#{onclick}\">#{note.title}</a>"

@@ -13,20 +13,16 @@ module Footnotes
       end
 
       def link
-        escape(Footnotes::Filter.prefix + filename)
+        escape(Footnotes::Filter.prefix(filename, 1, 1))
       end
 
       def valid?
-        prefix? && first_render?
+        prefix? && @template && @template.template
       end
 
       protected
-        def first_render?
-          @template.instance_variable_get(:@_first_render)
-        end
-        
         def filename
-          @filename ||= @template.instance_variable_get(:@_first_render).filename
+          @template.template.filename
         end
     end
   end

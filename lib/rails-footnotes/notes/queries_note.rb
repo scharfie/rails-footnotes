@@ -7,7 +7,7 @@ module Footnotes
       cattr_accessor :sql
 
       def self.start!(controller)
-        @@sql = [] unless controller.instance_variable_get('@parent_controller')
+        @@sql = []
       end
 
       def self.to_sym
@@ -27,23 +27,13 @@ module Footnotes
 STYLESHEET
       end
 
-      def javascript
-<<-JAVASCRIPT
-  function queries_toogle(type, id){
-    s = document.getElementById('q'+type+'_'+id).style
-    s.display = (s.display != 'block') ? 'block' : 'none'
-    location.href = '#qtitle_'+id
-  }
-JAVASCRIPT
-      end
-
       def content
         html = ''
 
         @@sql.each_with_index do |item, i|
           sql_links = []
-          sql_links << "<a href=\"#\" style=\"color:#A00;\" onclick=\"queries_toogle('table',#{i});return false\">explain</a>" if item.explain
-          sql_links << "<a href=\"#\" style=\"color:#00A;\" onclick=\"queries_toogle('trace',#{i});return false\">trace</a>" if item.trace
+          sql_links << "<a href=\"#\" style=\"color:#A00;\" onclick=\"Footnotes.toggle('qtable_#{i}');return false\">explain</a>" if item.explain
+          sql_links << "<a href=\"#\" style=\"color:#00A;\" onclick=\"Footnotes.toggle('qtrace_#{i}');return false\">trace</a>" if item.trace
 
 html << <<-HTML
   <b id="qtitle_#{i}">#{escape(item.type.to_s.upcase)}</b> (#{sql_links.join(' | ')})<br />
@@ -68,7 +58,7 @@ HTML
         def parse_trace(trace)
           trace.map do |t|
             s = t.split(':')
-            "<a href=\"#{escape("#{Footnotes::Filter.prefix}#{RAILS_ROOT}/#{s[0]}&line=#{s[1].to_i}")}\">#{escape(t)}</a><br />"
+            %[<a href="#{escape(Footnotes::Filter.prefix("#{RAILS_ROOT}/#{s[0]}", s[1].to_i, 1))}">#{escape(t)}</a><br />]
           end.join
         end
 
@@ -147,10 +137,10 @@ HTML
 end
 
 if Footnotes::Notes::QueriesNote.included?
-  ActiveRecord::ConnectionAdapters::AbstractAdapter.__send__ :include, Footnotes::Extensions::AbstractAdapter
+  ActiveRecord::ConnectionAdapters::AbstractAdapter.send :include, Footnotes::Extensions::AbstractAdapter
   ActiveRecord::ConnectionAdapters.local_constants.each do |adapter|
     next unless adapter =~ /.*[^Abstract]Adapter$/
     next if adapter =~ /SQLite.Adapter$/
-    eval("ActiveRecord::ConnectionAdapters::#{adapter}").__send__ :include, Footnotes::Extensions::QueryAnalyzer
+    eval("ActiveRecord::ConnectionAdapters::#{adapter}").send :include, Footnotes::Extensions::QueryAnalyzer
   end
 end
