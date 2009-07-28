@@ -150,6 +150,10 @@ module Footnotes
         @controller.request.xhr?
       end
 
+      def read_asset(filename)
+        File.read(File.join(File.dirname(__FILE__), 'assets', filename))
+      end
+
       #
       # Insertion methods
       #
@@ -158,13 +162,7 @@ module Footnotes
         insert_text :before, /<\/head>/i, <<-HTML
         <!-- Footnotes Style -->
         <style type="text/css">
-          #footnotes_debug {margin: 2em 0 1em 0; text-align: center; color: #444; line-height: 16px;}
-          #footnotes_debug a {text-decoration: none; color: #444; line-height: 18px;}
-          #footnotes_debug table {text-align: center;}
-          #footnotes_debug table td {padding: 0 5px;}
-          #footnotes_debug tbody {text-align: left;}
-          #footnotes_debug legend {background-color: #FFF;}
-          #footnotes_debug fieldset {text-align: left; border: 1px dashed #aaa; padding: 0.5em 1em 1em 1em; margin: 1em 2em; color: #444; background-color: #FFF;}
+          #{read_asset('footnotes.css')}
           /* Aditional Stylesheets */
           #{@notes.map(&:stylesheet).compact.join("\n")}
         </style>
@@ -175,6 +173,7 @@ module Footnotes
       def insert_footnotes
         # Fieldsets method should be called first
         content = fieldsets
+        hideAll = @@multiple_notes ? nil : %[Footnotes.hideAll = function() { #{close} }]
 
         footnotes_html = <<-HTML
         <!-- Footnotes -->
@@ -183,43 +182,8 @@ module Footnotes
           #{links}
           #{content}
           <script type="text/javascript">
-            var Footnotes = function() {
-
-              function hideAll(){
-                #{close unless @@multiple_notes}
-              }
-              
-              function hideAllAndToggle(id) {
-                hideAll();
-                toggle(id)
-              }  
-              
-              function toggle(id){
-                var el = document.getElementById(id);
-                if (el.style.display == 'none') {
-                  Footnotes.show(el);
-                } else {
-                  Footnotes.hide(el);
-                }
-              
-                location.href = '#footnotes_debug';
-              }
-            
-              function show(element) {
-                element.style.display = 'block'
-              }
-            
-              function hide(element) {
-                element.style.display = 'none'
-              }
-
-              return {
-                show: show,
-                hide: hide,
-                toggle: toggle,
-                hideAllAndToggle: hideAllAndToggle
-              }
-            }();
+            #{read_asset('footnotes.js')}
+            #{hideAll}
             /* Additional Javascript */
             #{@notes.map(&:javascript).compact.join("\n")}
           </script>
